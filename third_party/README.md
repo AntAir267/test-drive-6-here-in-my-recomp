@@ -34,3 +34,26 @@ For the player download (tools/release/linux.sh), also (the same pieces as 1NSAN
   download puts beside that Python.
 - appimagetool-x86_64.AppImage (github.com/AppImage/appimagetool) and appimage-runtime-x86_64,
   the runtime it puts at the front of an AppImage.
+
+For the Windows zip (tools/release/windows.sh, cross-built on Linux), in win/:
+
+- zig-x86_64-windows-0.17.0/: the official Windows build of the same Zig (ziglang.org, sha256
+  b5663f69581dcf391293fbf16c06cb80d81d806545ce618b4d0bab7f0eb8c428): the zip carries it.
+- python-win/python/: CPython 3.14.8 for Windows from python-build-standalone (release 20261020,
+  cpython-3.14.8+20261020-x86_64-pc-windows-msvc-install_only_stripped.tar.gz, sha256
+  6761cf0dd740591df7643cf55fd03913c8ec7ddd88b419fe2f170abe3479e198).
+- capstone-win/: capstone-5.0.9-py3-none-win_amd64.whl from PyPI, unpacked (sha256
+  732cedbbb56d42e723f14d7af6387f1454194a820b4b96b56d1e53f865ef85d0).
+- tools/: zig cc / ar / ranlib / rc wrappers for x86_64-windows-gnu and a CMake toolchain file
+  using them; wcc-ff also drops the GNU ld options FFmpeg's configure adds for MinGW.
+- sdl3/: SDL3 built with that toolchain (SDL_SHARED=OFF, SDL_STATIC=ON, SDL_TEST_LIBRARY=OFF).
+- zlib/: zlib 1.3.1's sources compiled with the wrapper into zlib/lib/libz.a, its headers and
+  LICENSE beside it.
+- ffmpeg/: FFmpeg 8.0.1 as for Linux, with --target-os=mingw32 --arch=x86_64
+  --enable-cross-compile --enable-w32threads and the wcc-ff wrapper (the zip's
+  licenses/FFmpeg-BUILD.txt has the options).
+- vulkan/: Vulkan's headers (from the system's) and lib/libvulkan-1.a, an import library made with
+  `zig dlltool` from vulkan-1.def (the vk* functions the system's loader exports).
+
+Testing the Windows build under Wine (Proton 10): Wine keeps the low memory the program needs for
+its own allocations, so runs need tools/dev/wine_lowfree.c (LD_PRELOAD into Wine; it says why).

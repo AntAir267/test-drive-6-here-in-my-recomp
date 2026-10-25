@@ -9,9 +9,9 @@
    to C (build/gen), compiles that and links it with the runtime (bin/td6). After that it starts
    the game at once, until a new download (another VERSION) builds it again.
 
-   Bundle: <launcher's folder>/../lib/td6-recomp (or TD6_BUNDLE): VERSION, FUNCS_SHA256, zig/,
-   python/, tools/, builds/, include/, lib/. User folder: the game's own, ~/.local/share/td6-native
-   (TD6_USER for another).
+   Bundle: <launcher's folder>/../lib/td6-recomp, on Windows the launcher's own folder (or
+   TD6_BUNDLE): VERSION, FUNCS_SHA256, zig/, python/, tools/, builds/, include/, lib/. User folder:
+   the game's own, ~/.local/share/td6-native or %APPDATA%\td6-native (TD6_USER for another).
 
    Without a window (--setup-from <CD, folder, .iso or .zip> [--no-launch]) it does the same in the
    terminal: for tests and for those who prefer it. --setup shows the setup again. */
@@ -19,8 +19,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#ifdef _WIN32
+#include <windows.h>
+#define EXE ".exe"
+#define TARGET "x86_64-windows-gnu"
+#define PYTHON "python/python.exe"
+#else
+#define EXE ""
 #define TARGET "x86_64-linux-gnu.2.31"
+#define PYTHON "python/bin/python3.14"
+#endif
 
 static char bundle[1024], user[1024];
 static char version[128], release[32];
@@ -202,7 +210,7 @@ static int run(const char *const *argv)
 static int run_tool(const char *tool, const char *const *args)
 {
     char py[1024], t[1024];
-    path(py, sizeof py, bundle, "python/bin/python3.14");
+    path(py, sizeof py, bundle, PYTHON);
     SDL_snprintf(t, sizeof t, "%s/tools/%s", bundle, tool);
     const char *argv[16] = {py, "-E", "-s", "-B", t};
     int k = 5;
@@ -242,7 +250,7 @@ static int install(const char *src)
 static int build_game(void)
 {
     char zig[1024], gen[1024], obj[1024], bin[1024], cfg[1024], exe[1024], inc[1024], cache[1024];
-    path(zig, sizeof zig, bundle, "zig/zig");
+    path(zig, sizeof zig, bundle, "zig/zig" EXE);
     path(gen, sizeof gen, user, "build/gen");
     path(obj, sizeof obj, user, "build/obj");
     path(bin, sizeof bin, user, "bin");
@@ -258,6 +266,7 @@ static int build_game(void)
     make_dirs(gen);
     make_dirs(obj);
     make_dirs(bin);
+    make_dirs(cache);                   /* (before the compilers start: they race to make it otherwise) */
     SDL_SetEnvironmentVariable(SDL_GetEnvironment(), "ZIG_GLOBAL_CACHE_DIR", cache, true);
     SDL_SetEnvironmentVariable(SDL_GetEnvironment(), "ZIG_LOCAL_CACHE_DIR", cache, true);
 
@@ -277,7 +286,7 @@ static int build_game(void)
         /* (sha256 of gen/funcs.h, by the bundle's Python: no other tool needed) */
         char fh[1024], py[1024];
         path(fh, sizeof fh, gen, "funcs.h");
-        path(py, sizeof py, bundle, "python/bin/python3.14");
+        path(py, sizeof py, bundle, PYTHON);
         char code[1400];
         SDL_snprintf(code, sizeof code,
                      "import hashlib;open(r'%s','w').write(hashlib.sha256(open(r'%s','rb').read()).hexdigest())", have_p, fh);
@@ -328,7 +337,10 @@ static int build_game(void)
             path(src, sizeof src, gen, names[next]);
             SDL_snprintf(objs[next], sizeof objs[0], "%s/%.*s.o", obj, (int)(SDL_strlen(names[next]) - 2), names[next]);
             const char *argv[] = {zig, "cc", "-target", TARGET, "-std=gnu11", "-O2", "-w", "-DCPU_FAST_MEM",
-                                  "-fno-strict-aliasing", "-fno-omit-frame-pointer", "-fno-slp-vectorize", "-fPIE",
+                                  "-fno-strict-aliasing", "-fno-omit-frame-pointer", "-fno-slp-vectorize",
+#ifndef _WIN32
+                                  "-fPIE",
+#endif
                                   "-I", inc, "-I", gen, "-c", src, "-o", objs[next], NULL};
             procs[j] = spawn(argv);
             if (!procs[j]) {
@@ -371,22 +383,37 @@ static int build_game(void)
 
     say("Building the game", "linking it with the runtime");
     char out[1024], lib[1024], rt[1024], stubs[1024];
-    path(out, sizeof out, bin, "td6");
+    path(out, sizeof out, bin, "td6" EXE);
     path(lib, sizeof lib, bundle, "lib");
     path(rt, sizeof rt, bundle, "lib/libruntime.a");
     path(stubs, sizeof stubs, bundle, "lib/stubs");
     const char *largv[200];
     int k = 0;
     largv[k++] = zig, largv[k++] = "cc", largv[k++] = "-target", largv[k++] = TARGET;
-    largv[k++] = "-fPIE", largv[k++] = "-pie", largv[k++] = "-rdynamic", largv[k++] = "-o", largv[k++] = out;
+#ifndef _WIN32
+    largv[k++] = "-fPIE", largv[k++] = "-pie", largv[k++] = "-rdynamic";
+#endif
+    largv[k++] = "-o", largv[k++] = out;
     for (int i = 0; i < nnames; i++)
         largv[k++] = objs[i];
     largv[k++] = "-Wl,--whole-archive", largv[k++] = rt, largv[k++] = "-Wl,--no-whole-archive";
     largv[k++] = "-L", largv[k++] = lib, largv[k++] = "-L", largv[k++] = stubs;
     largv[k++] = "-lSDL3", largv[k++] = "-lavformat", largv[k++] = "-lavcodec", largv[k++] = "-lswscale";
     largv[k++] = "-lswresample", largv[k++] = "-lavutil";
+#ifdef _WIN32
+    static char res[1024];              /* the manifest and the icon */
+    path(res, sizeof res, bundle, "lib/td6.res");
+    if (exists(res))
+        largv[k++] = res;
+    static const char *const winlibs[] = {"-lz", "-lvulkan-1", "-luser32", "-lgdi32", "-lwinmm", "-limm32", "-lole32",
+        "-loleaut32", "-lversion", "-luuid", "-ladvapi32", "-lsetupapi", "-lshell32", "-ldinput8", "-lbcrypt",
+        "-lpthread", "-static", "-Wl,--stack,8388608", "-mwindows", NULL};
+    for (int i = 0; winlibs[i]; i++)
+        largv[k++] = winlibs[i];
+#else
     largv[k++] = "-lvulkan", largv[k++] = "-lz", largv[k++] = "-lm", largv[k++] = "-ldl", largv[k++] = "-pthread";
     largv[k++] = "-Wl,--allow-shlib-undefined";
+#endif
     largv[k] = NULL;
     if (run(largv) != 0) {
         say("Linking failed", last_output);
@@ -437,19 +464,20 @@ static int built(void)
     char *s = read_text(stamp);
     int ok = s && !SDL_strcmp(s, version);
     SDL_free(s);
-    path(g, sizeof g, user, "bin/td6");
+    path(g, sizeof g, user, "bin/td6" EXE);
     return ok && exists(g) && game_installed();
 }
 
 static void launch_game(int argc, char **argv)
 {
     char g[1024], log[1024], game[1024];
-    path(g, sizeof g, user, "bin/td6");
+    path(g, sizeof g, user, "bin/td6" EXE);
     path(log, sizeof log, user, "last-run.log");
     path(game, sizeof game, user, "game");
     const char *args[64];
     int k = 0;
     args[k++] = g;
+    args[k++] = "--window";             /* (without it the game runs headless, as for tests) */
     args[k++] = "--user", args[k++] = user, args[k++] = "--game", args[k++] = game;
     args[k++] = "--logfile", args[k++] = log;
     for (int i = 1; i < argc && k < 62; i++)
@@ -483,6 +511,17 @@ static SDL_EnumerationResult find_cd_cb(void *ud, const char *dir, const char *n
 
 static int detect(char *out, size_t n)
 {
+#ifdef _WIN32
+    DWORD drives = GetLogicalDrives();  /* a CD in a drive (or a mounted image): D: to Z: */
+    for (int d = 3; d < 26; d++) {
+        char root[4] = {(char)('A' + d), ':', 0};
+        if ((drives >> d & 1) && GetDriveTypeA((char[]){root[0], ':', '\\', 0}) == DRIVE_CDROM && is_td6_folder(root)) {
+            SDL_strlcpy(out, root, n);
+            return 1;
+        }
+    }
+    return 0;
+#endif
     const char *u = SDL_getenv("USER");
     char places[3][512];
     SDL_snprintf(places[0], sizeof places[0], "/run/media/%s", u ? u : "");
@@ -704,13 +743,32 @@ static void find_folders(void)
     const char *b = SDL_getenv("TD6_BUNDLE");
     if (b)
         SDL_strlcpy(bundle, b, sizeof bundle);
-    else
+    else {
+#ifdef _WIN32
+        SDL_strlcpy(bundle, SDL_GetBasePath(), sizeof bundle);      /* (the zip's folder: launcher and bundle) */
+        size_t k = SDL_strlen(bundle);
+        if (k && (bundle[k - 1] == '/' || bundle[k - 1] == '\\'))
+            bundle[k - 1] = 0;
+#else
         SDL_snprintf(bundle, sizeof bundle, "%s../lib/td6-recomp", SDL_GetBasePath());
+#endif
+    }
     const char *u = SDL_getenv("TD6_USER");
     if (u)
         SDL_strlcpy(user, u, sizeof user);
-    else
-        SDL_snprintf(user, sizeof user, "%s/.local/share/td6-native", SDL_getenv("HOME"));   /* (as the game's) */
+    else {                              /* (as the game's own) */
+#ifdef _WIN32
+        SDL_snprintf(user, sizeof user, "%s/td6-native", SDL_getenv("APPDATA"));
+#else
+        SDL_snprintf(user, sizeof user, "%s/.local/share/td6-native", SDL_getenv("HOME"));
+#endif
+    }
+    for (char *c = user; *c; c++)
+        if (*c == '\\')
+            *c = '/';
+    for (char *c = bundle; *c; c++)
+        if (*c == '\\')
+            *c = '/';
     make_dirs(user);
     char vp[1024];
     path(vp, sizeof vp, bundle, "VERSION");

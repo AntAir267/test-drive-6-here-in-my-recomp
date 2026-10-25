@@ -42,3 +42,17 @@ launcher, the runtime, Zig, Python with the translator and installer, FFmpeg and
 The game it builds on the player's computer computes exactly what the gcc build does (memory
 compared frame by frame through the menus and into a race; the only difference ever seen was
 ±1 in decoded movie sound, from the system's FFmpeg against the bundled one).
+
+## The Windows zip
+
+`tools/release/windows.sh OUT_DIR`, after linux.sh in the same worktree (it uses its gen/), with
+the pieces third_party/README.md lists for it: a cross-build on Linux with Zig, no Windows
+machine needed. It builds the runtime for x86_64-windows-gnu (runtime/win/ in place of the POSIX
+pieces MinGW lacks: the program's low memory reserved before anything else, sleeps, spawning,
+signals), links the game with it as the check, and packs the launcher, the runtime, Zig and
+Python for Windows, FFmpeg and the licences into one folder, zipped.
+
+Under Wine (tools/dev/wine_lowfree.c), the Windows game's memory matched the Linux build's
+exactly at frame 2200 (menus, then a race), and it draws with Vulkan; the launcher copies and
+translates the game there, but Zig's compile step needs a file-locking call Wine lacks, so the
+whole first run is only checked on Windows itself.

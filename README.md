@@ -1,12 +1,10 @@
 # Test Drive 6 - Here In My Recomp
 
-An unofficial native Linux version of **Test Drive 6** (Pitbull Syndicate / Infogrames, 1999,
+An unofficial native Linux and Windows version of **Test Drive 6** (Pitbull Syndicate / Infogrames, 1999,
 PC), made by static recompilation: the game's own TD6.exe is translated into C on your computer
 and built against a new stand-in for Windows and DirectX 7 on SDL3 and Vulkan. The game plays as
 it did; everything new is an option, and with every option off it runs exactly as shipped
 (checked frame by frame against the original code).
-
-**Coming soon: Windows.**
 
 > **Alpha.** This is an early test version. It has only been tested on the author's own computer
 > (listed under [Tested on](#tested-on)); expect problems on others, and please report them in
@@ -40,6 +38,12 @@ All optional, in `~/.local/share/td6-native/options.txt` (written with comments 
   files from it, builds the game on your computer once (about a minute), and plays it; after
   that it opens straight into the game. It needs 64-bit Linux from 2020 or later (glibc 2.31), a
   graphics driver with Vulkan 1.3, and about 500 MB free. `tools/release/linux.sh` makes it.
+- **Players (Windows):** download the zip from
+  [Releases](https://github.com/AntAir267/test-drive-6-here-in-my-recomp/releases), unzip it
+  anywhere and open `td6-recomp.exe` in its folder; it does the same as the Linux one (a CD in
+  the drive, or a disc image Windows has mounted, is found by itself). It needs 64-bit Windows
+  10 or 11, a graphics driver with Vulkan 1.3, and about 1 GB free. The program isn't signed,
+  so Windows may warn about it first (More info, then Run anyway).
 - **Developers:** see [BUILDING.md](BUILDING.md). In short: install the packages it lists, build
   SDL3 (see [third_party/README.md](third_party/README.md)), then
 
@@ -51,6 +55,9 @@ All optional, in `~/.local/share/td6-native/options.txt` (written with comments 
 
 - **Linux:** GPD Win Max 2 (2025) handheld laptop: AMD Ryzen AI 9 HX 370 with Radeon 890M
   graphics; Ubuntu 26.04 LTS, Linux 7.0, KDE Plasma 6.6 (Wayland), Mesa (RADV).
+- **Windows:** not yet on a Windows PC. The Windows build was made and checked on the Linux
+  machine above under Wine (Proton 10): the game runs and computes exactly what the Linux build
+  does; the first-run build step could not run there (Wine lacks a file call the compiler uses).
 
 ## Status
 
@@ -62,11 +69,11 @@ design notes and the plan are in [DESIGN.md](DESIGN.md).
 ## Layout
 
 - `tools/` the translator (Python + Capstone), `tools/install.py` the game's files from the CD,
-  `tools/release/` the AppImage
+  `tools/release/` the AppImage and the Windows zip
 - `launcher/` the AppImage's program: first-run setup, then the game
 - `builds/` what is known about TD6.exe (addresses only, and its hash)
 - `runtime/` the Windows/DirectX stand-in the translated code runs on, with binkw32 and wmaudsdk
-  stand-ins on FFmpeg
+  stand-ins on FFmpeg; `runtime/win/` what it needs on Windows (from 1NSANE: Recompiled)
 - `ref/`, `tests/` the original code in Unicorn, to check the translation against (developers)
 - `gen/`, `build/` the generated C and the build (from your TD6.exe; never committed)
 

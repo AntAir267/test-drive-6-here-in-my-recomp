@@ -27,3 +27,7 @@ The AppImage also carries (their licences are in it, under usr/lib/td6-recomp/li
 - [Python](https://www.python.org) 3.14 (PSF licence), from python-build-standalone: runs the
   translator and the installer.
 - SDL3 and Capstone, as above.
+
+The Windows zip carries the same, in their Windows builds (Zig for Windows, Python from
+python-build-standalone for Windows, Capstone's Windows wheel), and [zlib](https://zlib.net)
+(zlib licence) and the MinGW-w64 runtime (in Zig; its COPYING is in the zip) linked into the game.
