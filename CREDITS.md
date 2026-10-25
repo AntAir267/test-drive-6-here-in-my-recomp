@@ -17,3 +17,13 @@ Libraries the build uses (none is in this repository; see BUILDING.md and third_
   (`make build/td6_ref`), which runs the original code to check the translation; never part of
   the game.
 - Vulkan (the system's loader and driver), zlib.
+
+The AppImage also carries (their licences are in it, under usr/lib/td6-recomp/licenses):
+
+- [FFmpeg](https://ffmpeg.org) 8.0.1 (LGPL 2.1 or later), built small and static: only the Bink
+  and WMA decoders, with its source tarball and build options.
+- [Zig](https://ziglang.org) 0.17.0 (MIT licence; LLVM's libc++, libc++abi and libunwind inside it):
+  compiles the game on the player's computer.
+- [Python](https://www.python.org) 3.14 (PSF licence), from python-build-standalone: runs the
+  translator and the installer.
+- SDL3 and Capstone, as above.
