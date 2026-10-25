@@ -1,0 +1,10 @@
+# Never committed: the user's game files, generated C, builds, scratch work
+work/
+gen/
+build/
+third_party/*
+!third_party/README.md
+__pycache__/
+*.pyc
+.claude/
+.venv
