@@ -184,8 +184,22 @@ Screenshots: the renderer's own frame dumps (a spectacle capture takes in every 
   W-buffer, 10-11 no triple buffering, 12-13 no AGP, 16-17 no mip-mapping, 22-23 no fog, 24 no
   VSync. Dialog pages and control IDs: work/dialogs.py reads them from the resources.
 
+- Releases (2026-10-25): public repository AntAir267/test-drive-6-here-in-my-recomp. Linux
+  AppImage (tools/release/linux.sh): launcher/launcher.c does the first-run setup (install.py,
+  the translation, Zig compiling it against the bundled runtime, SDL3 and a small static FFmpeg
+  8.0.1 with only Bink and WMA), all built for glibc 2.31; the player's build matches the gcc
+  build's memory exactly. 0.1.0-alpha started the game headless (no --window): 0.1.1.
+  Windows zip (tools/release/windows.sh, cross-built here with Zig): runtime/win/ from
+  1NSANE: Recompiled (the low range 0x400000-0x70000000 reserved first thing, relaunching
+  suspended if taken), SDL3 / zlib / FFmpeg cross-built, Vulkan's import library from a .def.
+  Under Wine with tools/dev/wine_lowfree.c (Wine otherwise fills that range with its own
+  allocations) the Windows game's memory equals Linux's at frame 2200 and Vulkan draws; Zig's
+  cache locking (NtLockFile) fails under Wine, so the player's compile step is unchecked until
+  run on real Windows.
+
 ## Plan (next steps, in order)
 
+0. Windows on a real PC: the first-run build (Zig's compile and link), a window, a controller.
 1. A first place by autopilot for the high-score name entry (the autopilot finishes 3rd-6th).
 2. Button prompts: the controller screen is done (Xbox names, the XBOX layout); left: while the
    keyboard is chosen, that screen lists keys only (the pad's XBOX layout is not shown there).

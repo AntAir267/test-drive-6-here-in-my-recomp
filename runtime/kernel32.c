@@ -564,7 +564,11 @@ static void put_systemtime(uint32_t p, int64_t ft)
     int64_t u100 = ft - FT_EPOCH;
     time_t t = (time_t)(u100 / 10000000);
     struct tm tm;
+#ifdef _WIN32
+    gmtime_s(&tm, &t);
+#else
     gmtime_r(&t, &tm);
+#endif
     W16(p, tm.tm_year + 1900);
     W16(p + 2, tm.tm_mon + 1);
     W16(p + 4, tm.tm_wday);
@@ -578,9 +582,17 @@ static int64_t local_offset_100ns(void)
 {
     if (deterministic) return 0;
     time_t t = time(NULL);
+#ifdef _WIN32
+    struct tm g, l;                     /* (no tm_gmtoff: the difference of the two readings) */
+    gmtime_s(&g, &t);
+    localtime_s(&l, &t);
+    l.tm_isdst = g.tm_isdst = 0;
+    return (int64_t)(mktime(&l) - mktime(&g)) * 10000000;
+#else
     struct tm tm;
     localtime_r(&t, &tm);
     return (int64_t)tm.tm_gmtoff * 10000000;
+#endif
 }
 API(KERNEL32, GetSystemTimeAsFileTime, 1) { put_ft(ARG(0), unix_now_100ns() + FT_EPOCH); return 0; }
 API(KERNEL32, GetSystemTime, 1) { put_systemtime(ARG(0), unix_now_100ns() + FT_EPOCH); return 0; }
