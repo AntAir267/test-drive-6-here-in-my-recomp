@@ -8,9 +8,9 @@ it did; everything new is an option, and with every option off it runs exactly a
 
 **Coming soon: Windows.**
 
-> **Alpha.** This is an early test version, built from source only (no ready-made download yet).
-> It has only been tested on the author's own computer (listed under [Tested on](#tested-on));
-> expect problems on others, and please report them in Issues.
+> **Alpha.** This is an early test version. It has only been tested on the author's own computer
+> (listed under [Tested on](#tested-on)); expect problems on others, and please report them in
+> Issues.
 
 **Bring your own game.** This repository holds only the translator and the runtime, never any of
 the game's code or data. You need your own copy of the **PC CD** of Test Drive 6 (the CD, or an
@@ -32,12 +32,20 @@ All optional, in `~/.local/share/td6-native/options.txt` (written with comments 
 
 ## Getting it
 
-See [BUILDING.md](BUILDING.md). In short, on Linux: install the packages it lists, build SDL3
-(see [third_party/README.md](third_party/README.md)), then
+- **Players (Linux):** download the AppImage from
+  [Releases](https://github.com/AntAir267/test-drive-6-here-in-my-recomp/releases), make it
+  executable and open it. It holds everything needed but the game (the translator, a compiler,
+  the runtime and a small FFmpeg for the movies and music): it asks for your Test Drive 6 CD (the
+  disc, a copy of its files, or a disc image: .iso, or a .zip holding one), copies the game's
+  files from it, builds the game on your computer once (about a minute), and plays it; after
+  that it opens straight into the game. It needs 64-bit Linux from 2020 or later (glibc 2.31), a
+  graphics driver with Vulkan 1.3, and about 500 MB free. `tools/release/linux.sh` makes it.
+- **Developers:** see [BUILDING.md](BUILDING.md). In short: install the packages it lists, build
+  SDL3 (see [third_party/README.md](third_party/README.md)), then
 
-    tools/install.py /path/to/your/CD-or-image     # the CD, a copy of it, an .iso or a .zip of one
-    make                                           # translates TD6.exe and builds build/td6
-    build/td6
+      tools/install.py /path/to/your/CD-or-image     # the CD, a copy of it, an .iso or a .zip of one
+      make                                           # translates TD6.exe and builds build/td6
+      build/td6
 
 ## Tested on
 
@@ -53,7 +61,9 @@ design notes and the plan are in [DESIGN.md](DESIGN.md).
 
 ## Layout
 
-- `tools/` the translator (Python + Capstone), `tools/install.py` the game's files from the CD
+- `tools/` the translator (Python + Capstone), `tools/install.py` the game's files from the CD,
+  `tools/release/` the AppImage
+- `launcher/` the AppImage's program: first-run setup, then the game
 - `builds/` what is known about TD6.exe (addresses only, and its hash)
 - `runtime/` the Windows/DirectX stand-in the translated code runs on, with binkw32 and wmaudsdk
   stand-ins on FFmpeg

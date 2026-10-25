@@ -32,3 +32,13 @@ and udev development packages).
 3. `make` (or `make JOBS=4`): translates TD6.exe (seconds) and compiles the C (a few minutes).
 4. `build/td6 --window`, or headless: `build/td6 --test --frames N` with `TD6_DUMP_FRAMES=<dir>`
    for frame dumps.
+
+## The AppImage
+
+`tools/release/linux.sh OUT_DIR`, in a checkout of its own (a git worktree: its build/ and gen/
+become the release build), with the pieces third_party/README.md lists for the player download.
+It builds the runtime with Zig for glibc 2.31, checks that the translation builds, and packs the
+launcher, the runtime, Zig, Python with the translator and installer, FFmpeg and the licences.
+The game it builds on the player's computer computes exactly what the gcc build does (memory
+compared frame by frame through the menus and into a race; the only difference ever seen was
+±1 in decoded movie sound, from the system's FFmpeg against the bundled one).
