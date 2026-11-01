@@ -1,0 +1,22 @@
+{
+  "$schema": "https://recomp.fyi/schema/v1.json",
+  "game": "Test Drive 6",
+  "wikidata": "Q2326799",
+  "system": "PC (Windows)",
+  "type": "recomp",
+  "original": { "revision": "PC CD, linked 1999-11-01", "sha1": "76997392d72e59bd445c528d1ddd1ed179e0744a" },
+  "project": "Test Drive 6 - Here In My Recomp",
+  "status": "playable",
+  "targets": ["Linux", "Windows"],
+  "toolchain": "1nsane-recompiled",
+  "approach": "Static recompilation of TD6.exe to C, with a Windows and DirectX 7 stand-in on SDL3 and Vulkan; checked frame by frame against the original code.",
+  "started": "2026-10-24",
+  "maintainers": [{ "name": "AntAir267", "link": "https://github.com/AntAir267" }],
+  "links": [
+    { "label": "Downloads", "url": "https://github.com/AntAir267/test-drive-6-here-in-my-recomp/releases" },
+    { "label": "Build guide", "url": "https://github.com/AntAir267/test-drive-6-here-in-my-recomp/blob/main/BUILDING.md" },
+    { "label": "Design notes", "url": "https://github.com/AntAir267/test-drive-6-here-in-my-recomp/blob/main/DESIGN.md" }
+  ],
+  "help": ["Trying the Windows download on a real Windows PC", "Testing on other computers and controllers"],
+  "notes": "Alpha: every front-end screen and race mode works, but only the author's own Linux computer has played it. The Windows download has only been checked under Wine, not yet on a Windows PC, and its first-run build step is untested. Bring your own copy; the download checks it and builds the game on your computer. Adds any resolution, widescreen, correct speed at high refresh rates, and controllers with rumble."
+}
