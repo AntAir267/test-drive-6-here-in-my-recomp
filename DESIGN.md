@@ -143,6 +143,23 @@ Screenshots: the renderer's own frame dumps (a spectacle capture takes in every 
   middle. The showroom's 3D view is widened too: its camera is built at start-up before the
   screen's shape is known, so a full-width viewport's perspective (kept in its record, + 0x28)
   is widened again at the next frame when the shape changes (also after window resizes).
+  The rev counter's needle (2026-11-05, Ant on the Steam Deck: "the speedometer glitches in the
+  menu"): it was moved with the bar only when its box reached the bar's bottom (y 476), so at
+  most angles it stayed behind while its dial went to the edge. Small pieces over the bar's end
+  tiles (left: centre < 160, top >= 350; right: centre > 480, top >= 430) now go with them
+  [verified: frame dumps at 1280x800 match the 4:3 needle at every angle; against the old
+  renderer only the needle's pixels differ on the garage, class, buy and selected-car screens].
+  The view cone (2026-10-25, Ant saw pop-in at the screen's edges): the game draws a level
+  model or an object only when its bounding sphere is inside a cone (0x432b90 level models,
+  0x432d00 the others) whose side planes (0x585518 x, 0x585520 z) come from half the width
+  (0x585590) over a focal length (0x5855a8 = width x 0.5625), built at a race's start (0x433b80)
+  and when a camera changes its focal length (0x433c60): about 83 degrees across, a little
+  wider than the 75-degree camera at 4:3. Widened with the camera (widen_cone, hooks on both
+  builders): at 21:9 (106 degrees) trees at the top corners were missing in 30 of 124 frames of
+  an autopilot drive in Rome without it; at 16:9 (91 degrees) no frame of that drive changed.
+  It changes only what is drawn (the draw lists, the texture cache): the cars' records are the
+  same. The level is drawn by track section (0x457580: a window of up to 64 sections round the
+  camera, from the VIDEO OPTIONS draw distance, 0x65bccc / 4096), not by angle.
 - Controllers (pad.c, padgame.c): the joystick as TD6 reads it (X the left stick, Y the
   triggers together, Xbox button order); with the keyboard chosen in the game's options a race
   takes the XBOX layout (A hand brake, B/X gears, Y camera, LB rear view, RB horn) with every key
@@ -154,7 +171,25 @@ Screenshots: the renderer's own frame dumps (a spectacle capture takes in every 
   choosing the controller there gives the same layout, shown and rebindable. Rumble (option
   "rumble": on, off, or a strength 25-100 % in place of the game's 75 %): the game's own force feedback (decision 2) on the pad - a light engine buzz all
   race, collisions on the big motor; with the XBOX layout the player's car is given joystick 1
-  for it. The race reads the controller used last (2026-10-25: on the handheld Handheld Daemon
+  for it. Betting by pad (2026-11-05, Ant on the Deck could not bet): PLACE YOUR BET (menu
+  screen 114 in 0x65e260, alternating with 125, its list of bets, as the menu loop works through
+  the panels [verified: memory reads]) takes the bet only as typed characters (a digit: bet * 10
+  + digit; Backspace: bet / 10 [verified: 500, 3 x Backspace, 0, then 7: 7]); up/down move
+  between OK and CANCEL, left/right do nothing. With a controller, left/right (held: repeat) now
+  step the bet by 100 between the minimum (0x65dbb0) and the lower of the maximum (0x65dbac)
+  and the credits (0x65bcb8), typed as Backspaces and digits, one a presented frame (the menu
+  takes one character a frame [verified]), and the title reads "PLACE YOUR BET - LEFT/RIGHT"
+  (the menus' string table entry 102, 0x482570, pointed elsewhere while the screen is up)
+  [verified: scripted pad, 500 -> 800, A: prize money screen, credits 16000 -> 15200, the
+  title's pointer back]. VIDEO OPTIONS' RESOLUTION (2026-11-05, Ant on the Deck: it read 640 x
+  480 while the picture is the screen's): with resolution = native the game's mode only sets its
+  own coordinates and the picture fills the screen at the screen's resolution, so that line now
+  shows the picture's size (hook on 0x422fa0, which formats the selected entry of the mode list
+  at [0x577224] - width, height, depth at + 8, + 0xc, + 0x10 of a 12-byte entry, the selection
+  the short at [0x65de9c + item * 4] [verified: disassembly; frame dump "1280, 800, 16 BIT" at
+  1280x800 native, "640, 480, 16 BIT" with resolution = original]). Left/right there still
+  change the game's mode, which in native only changes its coordinates, so the line stays the
+  same. The race reads the controller used last (2026-10-25: on the handheld Handheld Daemon
   shows the built-in pad as two devices, "Generic X-Box pad" and a virtual "Xbox 360
   Controller"; joystick 1 could be the one not in use), and button presses are logged.
 - Front-end walk (2026-10-25, tools/dev/walk.sh, headless): every screen reached draws and works:
@@ -196,6 +231,17 @@ Screenshots: the renderer's own frame dumps (a spectacle capture takes in every 
   allocations) the Windows game's memory equals Linux's at frame 2200 and Vulkan draws; Zig's
   cache locking (NtLockFile) fails under Wine, so the player's compile step is unchecked until
   run on real Windows.
+
+## Open reports (parked 2026-10-25, Ant)
+
+- Driving through objects "sometimes". Checked: a scripted quick race into an opponent and a
+  wall is identical to the original code (lockstep, 1800 frames), and widescreen leaves the
+  race's memory alone; physics are fixed 30 Hz ticks. Needs the place (track, what was hit)
+  to script it there; may be the original game's.
+- "A Panoz Roadster woman soundbite" while driving the Viper in a quick race. The only voice in
+  the game's files is the race-start countdown (Sound.zip starta-startd, 11025 Hz, a woman's
+  voice, played once at the start, rightly); the cars' sounds (cars\sound.zip, by 0x49a7f8)
+  are engine loops. A voice mid-race would be a bug: needs when it played.
 
 ## Plan (next steps, in order)
 

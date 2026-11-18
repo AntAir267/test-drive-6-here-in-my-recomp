@@ -54,6 +54,8 @@ static const char *const help[][2] = {
                  "60, another rate, or off (as fast as the screen)"},
     {"rumble", "rumble: on (the game's own strength, 75 %), off, or a strength: 25, 50, 75 or 100"},
     {"controller_deadzone", "controller_deadzone: the sticks' dead zone against resting drift, percent"},
+    {"smooth_camera", "smooth_camera: on (races move evenly above 30 fps) or off (as the game: the "
+                      "picture steps at each 30 Hz physics tick, seen on hills and jumps)"},
     {NULL, NULL}};
 
 /* The first start (no options.txt yet, outside test runs): a file listing every option,
@@ -63,7 +65,7 @@ static void write_template(const char *path)
     static const char *const def[][2] = {
         {"display", "window"}, {"resolution", "original"}, {"widescreen", "off"}, {"vsync", "on"},
         {"frame_limit", "off"}, {"menu_fps", "60"}, {"rumble", "on"}, {"controller_deadzone", "6"},
-        {NULL, NULL}};
+        {"smooth_camera", "on"}, {NULL, NULL}};
     FILE *f = fopen(path, "w");
     if (!f)
         return;

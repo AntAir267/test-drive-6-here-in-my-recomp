@@ -35,6 +35,7 @@
    the keyboard goes on; one plugged back in takes the same joystick.
 
    In test runs none of this unless TD6_ENHANCED is set: the game's memory is then as shipped. */
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
@@ -225,6 +226,110 @@ static void mk_set(int k, int down)
     input_key(mk_dik[k], down);
 }
 
+/* ------------------------------------------------------------------ the bet screen */
+/* PLACE YOUR BET (menu screen 114 in 0x65e260 [verified: memory reads, 79 the single race menu
+   before it, 129 the prize money after; 125 between, its list of bets]) takes the bet only as typed digits: a digit makes it
+   bet * 10 + digit (refused past 5 digits), Backspace bet / 10 [verified: 500, three Backspaces,
+   0, then 7: 7] (the keyboard's characters, WM_CHAR, queued at 0x509300),
+   and OK raises a bet under the minimum to it (0x413481). Up and down move between OK and
+   CANCEL; left and right do nothing. With a controller, left and right (D-pad or stick, held to
+   repeat) lower and raise the bet by 100 between the minimum (0x65dbb0) and the lower of the
+   maximum (0x65dbac) and the player's credits (0x65bcb8) [verified: read at the screen: 500,
+   2000, 16000; the bet itself 0x65bdb0], typed as five Backspaces and its digits through the
+   window procedure as the keyboard's are; and the screen's title (entry 102 of the menus' string table, 0x482570)
+   says so while it is up. */
+#define MENU_SCREEN   0x65e260u
+#define SCREEN_BET    114
+#define SCREEN_BET_LIST 125
+#define BET_VALUE     0x65bdb0u
+#define BET_MIN       0x65dbb0u
+#define BET_MAX       0x65dbacu
+#define CREDITS       0x65bcb8u
+#define TITLE_BET     0x482570u         /* -> "PLACE YOUR BET" (0x4846c0) */
+
+static int bet_typing[10], bet_ntyping, bet_ntyped, bet_key_down, bet_held, bet_hold_frames;
+static uint32_t bet_title, bet_title_orig;
+
+static void bet_key(int dik, int down)
+{
+    input_key(dik, down);
+    if (input_script_key_hook)
+        input_script_key_hook(dik, down);
+}
+
+static void bet_screen(int on)
+{
+    if (!bet_title_orig)
+        bet_title_orig = R32(TITLE_BET);
+    if (!on) {
+        if (R32(TITLE_BET) != bet_title_orig)
+            W32(TITLE_BET, bet_title_orig);
+        if (bet_key_down) {
+            bet_key(bet_key_down, 0);
+            bet_key_down = 0;
+        }
+        bet_ntyped = bet_ntyping = 0;
+        bet_held = 0;
+        return;
+    }
+    if (!bet_title) {
+        static const char t[] = "PLACE YOUR BET - LEFT/RIGHT";
+        bet_title = galloc(sizeof t);
+        memcpy(gptr(bet_title), t, sizeof t);
+    }
+    W32(TITLE_BET, bet_title);
+
+    /* the digits being typed: one a presented frame, pressed on one and released on the next
+       (the menu takes one character a frame [verified: five a frame left two]) */
+    extern unsigned long frame_count;
+    static unsigned long last_frame;
+    if (bet_key_down || bet_ntyped < bet_ntyping) {
+        if (frame_count == last_frame)
+            return;
+        last_frame = frame_count;
+    }
+    if (bet_key_down) {
+        bet_key(bet_key_down, 0);
+        bet_key_down = 0;
+        return;
+    }
+    if (bet_ntyped < bet_ntyping) {
+        bet_key_down = bet_typing[bet_ntyped++];
+        bet_key(bet_key_down, 1);
+        return;
+    }
+
+    int lx = pad_axis_value(PAD_LX);
+    int dir = (pad_held(PAD_DRIGHT) || lx > 20000) - (pad_held(PAD_DLEFT) || lx < -20000);
+    if (!dir || dir != bet_held) {
+        bet_held = dir;
+        bet_hold_frames = 0;
+        if (!dir)
+            return;
+    } else if (++bet_hold_frames < 24 || bet_hold_frames % 6)
+        return;                                       /* held: again after 0.4 s, then 10 a second */
+    int32_t bet = (int32_t)R32(BET_VALUE), lo = (int32_t)R32(BET_MIN), hi = (int32_t)R32(BET_MAX);
+    int32_t credits = (int32_t)R32(CREDITS);
+    if (credits < hi)
+        hi = credits;
+    if (hi < lo)
+        return;
+    int32_t want = bet + 100 * dir;
+    want = want < lo ? lo : want > hi ? hi : want;
+    if (want > 99999)
+        want = 99999;
+    if (want == bet)
+        return;
+    char digits[8];
+    int n = snprintf(digits, sizeof digits, "%d", (int)want);
+    bet_ntyping = bet_ntyped = 0;
+    for (int32_t v = bet; v > 0 && bet_ntyping < 5; v /= 10)
+        bet_typing[bet_ntyping++] = 0x0e;             /* DIK_BACK, one per digit of the bet */
+    for (int i = 0; i < n; i++)
+        bet_typing[bet_ntyping++] = digits[i] == '0' ? 0x0b : 0x01 + (digits[i] - '0');   /* DIK_0, DIK_1..9 */
+    LOG(LOG_INPUT, "padgame: bet %d -> %d", bet, want);
+}
+
 /* A connected controller the game has no device for: through its own callback */
 static void claim_joysticks(void)
 {
@@ -276,6 +381,14 @@ void padgame_frame(unsigned long frame)
     rumble_strength();
     if (R32(GAME_GAME_STATE) == 1)
         options_screen();
+    {   /* (the menu loop sets 0x65e260 to each of the screen's panels in turn: 114, then 125 for
+           its list of bets [verified: alternate reads at the bet screen]) */
+        static int at_bet;
+        uint32_t scr = R32(MENU_SCREEN);
+        at_bet = pad_count() && R32(GAME_GAME_STATE) == 1 &&
+                 (scr == SCREEN_BET || (at_bet && scr == SCREEN_BET_LIST));
+        bet_screen(at_bet);
+    }
     int want[MK_N] = {0};
     if (pad_count()) {
         int state = (int)R32(GAME_GAME_STATE), paused = R32(RACE_PAUSED) != 0;

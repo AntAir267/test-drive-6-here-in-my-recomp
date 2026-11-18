@@ -9,7 +9,8 @@
    (vk.c: proj_widened, the projection's y/x scale being the wide aspect). The flat projection is
    left alone: menus and the HUD keep their 4:3 shape in the middle, except that inside the race
    HUD's routine (0x453cb0) each piece moves to the screen edge it sits nearest, and in the front
-   end's frame (0x41d100) its top banner and bottom bar reach the screen's sides (vk.c). Off by default
+   end's frame (0x41d100) its top banner and bottom bar reach the screen's sides (vk.c). The game's
+   view cone for what it draws (widen_cone) is widened with the camera. Off by default
    and in test runs: the game's memory then never changes. */
 #include <math.h>
 #include <stdlib.h>
@@ -18,6 +19,7 @@
 #include "image.h"
 #include "options.h"
 #include "widescreen.h"
+#include "vk.h"
 #include "funcs.h"
 
 static int ws_on, ws_log, allowed;
@@ -43,10 +45,30 @@ static float widened(float orig)
     return ws_aspect > 4.0f / 3.0f ? orig / (ws_aspect / (4.0f / 3.0f)) : orig;
 }
 
+/* The game's view cone, for its visibility tests of the level's models (0x432b90) and the other
+   objects (0x432d00): built by 0x433b80 from the screen's size at a race's start and by 0x433c60
+   when a camera changes its focal length (0x5855a8). Its sides' plane normal (0x585518 x,
+   0x585520 z) comes from half the width (0x585590) over the focal length, a little wider than the
+   camera sees. Widened as the camera is, or what the wider view shows at its sides is dropped
+   until it is well inside (pop-in at the screen's edges). */
+static void widen_cone(void)
+{
+    float w = rdf(0x585590u), d = rdf(0x5855a8u);
+    if (!ws_on || ws_aspect <= 4.0f / 3.0f || !(w > 0.0f) || !(d > 0.0f))
+        return;
+    double hw = 0.5 * w * (ws_aspect / (4.0 / 3.0)), s = sqrt((double)d * d + hw * hw);
+    wrf(0x585518u, (float)(d / s));
+    wrf(0x585520u, (float)(-hw / s));
+}
+
+static int view_cone_hook(CPU *c) { F_00433b80_orig(c); widen_cone(); return 1; }
+static int view_cone_again_hook(CPU *c) { F_00433c60_orig(c); widen_cone(); return 1; }
+
 static void refresh(void)
 {
     if (!ws_on)
         return;
+    widen_cone();                           /* (for a window resized since the cone was built) */
     for (int n = 0; n < 5; n++) {
         uint32_t m = VP_PERSPECTIVE(n);
         if (!built[n].used || rdf(m) != built[n].set)
@@ -116,7 +138,44 @@ static void sun_log(void)
             (int)R32(0x49b888u), rdf(0x58546cu), rdf(0x585470u), rdf(0x585474u));
     last = vis;
 }
-WRAP(race_frame_hook, ws_race_depth, F_00445850, refresh(); sun_log())
+/* VIDEO OPTIONS' RESOLUTION line (0x422fa0, ECX the item: the selected mode's index is the
+   short at [0x65de9c + ECX * 4]; the game's mode list at [0x577224], 12 bytes an entry, its
+   width, height and depth at + 8, + 0xc, + 0x10 [verified: disassembly of 0x422fa0, which
+   formats them with "%d, %d, %d " (0x482130) and adds BIT]). With resolution = native the game's
+   mode only sets its own coordinates and the picture fills the screen at the screen's
+   resolution (vk.c res_update), so the line shows that size: written into the entry for the
+   call, then put back. */
+static int resolution_text_hook(CPU *c)
+{
+    int w = 0, h = 0;
+    uint32_t list = R32(0x577224u), sel = R32(0x65de9cu + c->ecx * 4u);
+    if (!vk_resolution_native() || !list || !sel || c->ecx > 16)
+        return 0;
+    vk_native_size(&w, &h);
+    if (w <= 0 || h <= 0)
+        return 0;
+    uint32_t e = list + 12u * (uint32_t)(int16_t)R16(sel);
+    uint32_t ow = R32(e + 8), oh = R32(e + 0xc);
+    W32(e + 8, (uint32_t)w);
+    W32(e + 0xc, (uint32_t)h);
+    F_00422fa0_orig(c);
+    W32(e + 8, ow);
+    W32(e + 0xc, oh);
+    return 1;
+}
+
+/* the race frame; after it, the cars' true heights back for the next ticks (camera.c) */
+void camera_race_end(void);
+static int race_frame_hook(CPU *c)
+{
+    refresh();
+    sun_log();
+    ws_race_depth++;
+    F_00445850_orig(c);
+    ws_race_depth--;
+    camera_race_end();
+    return 1;
+}
 WRAP(race_hud_hook, ws_hud_depth, F_00453cb0, )
 WRAP(front_frame_hook, ws_menu_depth, F_0041d100, refresh())
 
@@ -135,6 +194,9 @@ void widescreen_init(void)
         hook_race_frame = race_frame_hook;
         hook_race_hud = race_hud_hook;
         hook_front_frame = front_frame_hook;
+        hook_view_cone = view_cone_hook;
+        hook_view_cone_again = view_cone_again_hook;
+        hook_resolution_text = resolution_text_hook;
     }
 }
 
