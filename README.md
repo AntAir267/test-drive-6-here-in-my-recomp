@@ -68,12 +68,16 @@ design notes and the plan are in [DESIGN.md](DESIGN.md).
 
 ## Layout
 
-- `tools/` the translator (Python + Capstone), `tools/install.py` the game's files from the CD,
-  `tools/release/` the AppImage and the Windows zip
+- `third_party/antistatic/` the [AntiStatic Recomp Toolkit](https://github.com/AntAir267/AntiStatic-Recomp-Toolkit)
+  (a git submodule): the translator (Python + Capstone) and the Windows/DirectX 7 stand-in the
+  translated code runs on, on SDL3 and Vulkan
+- `tools/install.py` the game's files from the CD, `tools/release/` the AppImage and the Windows
+  zip (still the scripts of the 0.1 releases, which predate the toolkit: being moved onto it)
 - `launcher/` the AppImage's program: first-run setup, then the game
 - `builds/` what is known about TD6.exe (addresses only, and its hash)
-- `runtime/` the Windows/DirectX stand-in the translated code runs on, with binkw32 and wmaudsdk
-  stand-ins on FFmpeg; `runtime/win/` what it needs on Windows (from 1NSANE: Recompiled)
+- `runtime/` TD6's own part of the runtime: its settings for the toolkit (`port.h`), binkw32 and
+  wmaudsdk stand-ins on FFmpeg, widescreen, controllers, smooth motion; `runtime/win/` what the
+  Windows build needs
 - `ref/`, `tests/` the original code in Unicorn, to check the translation against (developers)
 - `gen/`, `build/` the generated C and the build (from your TD6.exe; never committed)
 
@@ -81,7 +85,8 @@ design notes and the plan are in [DESIGN.md](DESIGN.md).
 
 See [CREDITS.md](CREDITS.md). This project's own code is released into the public domain
 ([LICENSE](LICENSE)); the libraries it uses keep their own licences. The translator and runtime
-are forked from [1NSANE: Recompiled](https://github.com/AntAir267/1nsane-recompiled).
+are the [AntiStatic Recomp Toolkit](https://github.com/AntAir267/AntiStatic-Recomp-Toolkit) (public
+domain), grown out of [1NSANE: Recompiled](https://github.com/AntAir267/1nsane-recompiled)'s.
 
 Test Drive is a trademark of its owners. This project is not made, endorsed or supported by
 Pitbull Syndicate, Infogrames, Atari, Accolade or the game's current owners.

@@ -407,6 +407,38 @@ void padgame_frame(unsigned long frame)
         mk_set(k, want[k]);
 }
 
+/* The joystick TD6 sees (pad.c's port_pad_send; the toolkit merges every controller into it).
+   TD6 reads a joystick's X and Y axes and its first buttons only (0x40a010): X steers, Y is one
+   axis for accelerating (up, -) and braking (down, +), as wheel pedals were then. So its Y is the
+   triggers together (LT - RT: RT accelerates, LT brakes, as Windows' driver puts an Xbox
+   controller's triggers on one axis) and the left stick's up/down goes to Z: the layout TD6's
+   own runtime gave it. The toolkit's default is Windows' with Y and Z the other way round, which
+   left the races with no pedals [verified 2026-11-14: Ant, "controllers are broken outside of
+   menu"; the race's Y read the left stick]. Buttons and the D-pad as the toolkit's (the same
+   order TD6's runtime used). */
+static const int td6_joy_button[PAD_BUTTONS] = {0, 1, 2, 3, 6, 10, 7, 8, 9, 4, 5, -1, -1, -1, -1, 11,
+                                                12, 13, 14, 15, -1, -1, -1, -1, -1, -1};
+static int clamp16(int v) { return v < -32768 ? -32768 : v > 32767 ? 32767 : v; }
+
+int port_pad_send(int joy, const PadState *st)
+{
+    input_joy_axis(joy, INPUT_AXIS_X, st->axis[PAD_LX]);
+    input_joy_axis(joy, INPUT_AXIS_Y, clamp16(st->axis[PAD_LT] - st->axis[PAD_RT]));
+    input_joy_axis(joy, INPUT_AXIS_Z, st->axis[PAD_LY]);
+    input_joy_axis(joy, INPUT_AXIS_RX, st->axis[PAD_RX]);
+    input_joy_axis(joy, INPUT_AXIS_RY, st->axis[PAD_RY]);
+    for (int b = 0; b < PAD_BUTTONS; b++)
+        if (td6_joy_button[b] >= 0)
+            input_joy_button(joy, td6_joy_button[b], st->button[b]);
+    int up = st->button[PAD_DUP], dn = st->button[PAD_DDOWN], l = st->button[PAD_DLEFT], r = st->button[PAD_DRIGHT];
+    int v = INPUT_POV_CENTERED;
+    if (up && r) v = 4500; else if (r && dn) v = 13500;
+    else if (dn && l) v = 22500; else if (l && up) v = 31500;
+    else if (up) v = 0; else if (r) v = 9000; else if (dn) v = 18000; else if (l) v = 27000;
+    input_joy_pov(joy, 0, v);
+    return 1;
+}
+
 void padgame_init(void)
 {
     allowed = !deterministic || getenv("TD6_ENHANCED");

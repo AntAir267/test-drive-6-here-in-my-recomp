@@ -13,8 +13,7 @@
    tick and nothing shows, which is what the game was made for.
 
    So the drawing's fraction is made 1.25 times as large: the multiply at 0x4458ba reads 1.25/65536
-   instead (here: the value at
-   0x62e164 scaled by 1.25 when the frame's drawing starts, 0x457580), and everything extrapolated reaches
+   instead (MEM_OVERRIDES tick_fraction in the build config), and everything extrapolated reaches
    the next tick's position as the tick comes, moving evenly and together. Only drawing functions
    read 0x62e164; the physics does not [verified: car records and race state identical with it on
    and off].
@@ -33,7 +32,6 @@
    at 120 and 165 fps; physics identical, DESIGN.md]. A tick that changes a height by more than
    0x10000 (put back on the road, a new race) keeps the game's own. TD6_CAM_NO_HEIGHT=1: heights
    as the game's (tests). */
-#include <stdlib.h>
 #include <string.h>
 #include <strings.h>
 #include "runtime.h"
@@ -49,32 +47,24 @@
 #define NCARS       6
 #define CAR_Y       0x1d8u              /* height */
 #define CAR_VY      0x1c0u              /* vertical velocity */
+#define PLAYER      0x62e15cu           /* the player's car */
+
 #define CAM_HEIGHT  0x5e38d0u           /* each view's camera height over its car (2: split screen) */
 #define NCAMS       2
 
 static struct { int32_t last, base, dy, y, vy; uint32_t tick; int known, own; } car[NCARS];
 static struct { int32_t last, base, now; int known, own; } cam[NCAMS];
 static uint32_t cam_tick;
-static int swapped, heights = 1;
+static int swapped;
 
 static int32_t to_drawing(int32_t dy) { float v = dy / TICK_STEP; return (int32_t)(v < 0 ? v - 0.5f : v + 0.5f); }
 
-/* the frame's drawing starts: the fraction made 1.25 times as large; each car drawn between its
-   last two ticks' heights, each camera height between its last two ticks' values */
+/* the frame's drawing starts: each car drawn between its last two ticks' heights */
 static int race_draw_hook(CPU *c)
 {
     (void)c;
     if (R32(GAME_STATE) != 2)
         return 0;
-    uint32_t u = R32(TICK_FRAC);
-    float f;
-    memcpy(&f, &u, 4);
-    float scaled = f * TICK_STEP;
-    memcpy(&u, &scaled, 4);
-    W32(TICK_FRAC, u);
-    if (!heights)
-        return 0;
-    f = f < 0 ? 0 : f > 1 ? 1 : f;
     uint32_t t = R32(TICK_COUNT);
     for (int i = 0; i < NCARS; i++) {
         uint32_t rec = CARS + CAR_SIZE * (uint32_t)i;
@@ -98,6 +88,13 @@ static int race_draw_hook(CPU *c)
             W32(rec + CAR_VY, (uint32_t)to_drawing(car[i].dy));
         }
     }
+    /* the camera's height over its car, set by each tick (0x438610 eases it towards its aim):
+       drawn between its last two ticks' values by the tick's fraction */
+    uint32_t u = R32(TICK_FRAC);
+    float f;
+    memcpy(&f, &u, 4);
+    f /= TICK_STEP;
+    f = f < 0 ? 0 : f > 1 ? 1 : f;
     uint32_t n = t - cam_tick;
     for (int k = 0; k < NCAMS; k++) {
         int32_t v = (int32_t)R32(CAM_HEIGHT + 4u * (uint32_t)k);
@@ -119,27 +116,9 @@ static int race_draw_hook(CPU *c)
     return 0;
 }
 
-/* TD6_CAM_LOG=1 (tests): each race frame as drawn, the fraction, the camera's position
-   (0x58546c) and the player's car's drawn height (+0x138) and its tick's height:
-   "CAM <ms> <fraction> <x> <y> <z> <car drawn y> <car y>" */
-static void cam_log(void)
-{
-    static int on = -1;
-    if (on < 0) on = getenv("TD6_CAM_LOG") != NULL;
-    if (!on || R32(GAME_STATE) != 2)
-        return;
-    float v[5];
-    uint32_t rec = CARS + CAR_SIZE * R32(0x62e15cu);
-    const uint32_t at[5] = {TICK_FRAC, 0x58546cu, 0x585470u, 0x585474u, rec + 0x138u};
-    for (int i = 0; i < 5; i++) { uint32_t u = R32(at[i]); memcpy(&v[i], &u, 4); }
-    LOG(LOG_ALWAYS, "CAM %.3f %.4f %.2f %.2f %.2f %.2f %d", now_ms(), v[0], v[1], v[2], v[3], v[4],
-        swapped ? car[R32(0x62e15cu) % NCARS].y : (int32_t)R32(rec + CAR_Y));
-}
-
 /* the race frame ends: the true heights and velocities back */
 void camera_race_end(void)
 {
-    cam_log();
     if (!swapped)
         return;
     for (int i = 0; i < NCARS; i++) {
@@ -152,14 +131,38 @@ void camera_race_end(void)
     swapped = 0;
 }
 
+/* TD6_CAM_LOG=1 (tests): the drawn camera's position (0x58546c), the fraction, the player's car's
+   drawn height (+0x138) and its tick's height (+0x1d8), each race frame:
+   "CAM <ms> <fraction> <x> <y> <z> <car drawn y> <car y>" */
+void camera_frame(void)
+{
+    static int on = -1;
+    if (on < 0) on = port_getenv("CAM_LOG") != NULL;
+    if (!on || R32(GAME_STATE) != 2)
+        return;
+    float v[4];
+    const uint32_t at[4] = {TICK_FRAC, 0x58546cu, 0x585470u, 0x585474u};
+    for (int i = 0; i < 4; i++) { uint32_t u = R32(at[i]); memcpy(&v[i], &u, 4); }
+    uint32_t rec = CARS + CAR_SIZE * R32(PLAYER), u = R32(rec + 0x138);
+    float dy;
+    memcpy(&dy, &u, 4);
+    LOG(LOG_ALWAYS, "CAM %.3f %.4f %.2f %.2f %.2f %.2f %d", frame_clock_ms(), v[0], v[1], v[2], v[3], dy,
+        (int32_t)R32(rec + CAR_Y));
+}
+
 void camera_init(void)
 {
-    int allowed = !deterministic || getenv("TD6_ENHANCED");
+    int allowed = !deterministic || port_getenv("ENHANCED");
     int on = allowed && strcasecmp(option_str("smooth_camera", "on"), "off") != 0;
     if (allowed)
         LOG(LOG_ALWAYS, "smooth camera: %s", on ? "on" : "off");
     if (!on)
         return;
-    heights = !getenv("TD6_CAM_NO_HEIGHT");
-    hook_race_draw = race_draw_hook;
+    float k = TICK_STEP / 65536.0f;
+    uint32_t a = galloc(4), u;
+    memcpy(&u, &k, 4);
+    W32(a, u);
+    rm_tick_fraction = a;
+    if (!port_getenv("CAM_NO_HEIGHT"))
+        hook_race_draw = race_draw_hook;
 }

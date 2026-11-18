@@ -22,6 +22,8 @@ glslang-tools zlib1g-dev libavformat-dev libavcodec-dev libswscale-dev libswresa
 (and SDL3's own build needs, as its docs list for your system: X11/Wayland, ALSA/PulseAudio/PipeWire
 and udev development packages).
 
+0. The toolkit (translator and runtime) is a git submodule: clone with
+   `git clone --recurse-submodules`, or run `git submodule update --init` in a clone.
 1. Python with Capstone for the translator, in the repository's `.venv`:
 
        python3 -m venv .venv

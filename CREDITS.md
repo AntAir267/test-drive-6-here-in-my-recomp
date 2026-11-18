@@ -2,8 +2,8 @@
 
 - **Test Drive 6** (1999) by Pitbull Syndicate, published by Infogrames. None of the game is in
   this repository: each player translates their own copy.
-- The translator and runtime come from [1NSANE: Recompiled](https://github.com/AntAir267/1nsane-recompiled)
-  (public domain).
+- The translator and runtime are the [AntiStatic Recomp Toolkit](https://github.com/AntAir267/AntiStatic-Recomp-Toolkit)
+  (public domain), grown out of [1NSANE: Recompiled](https://github.com/AntAir267/1nsane-recompiled)'s.
 
 Libraries the build uses (none is in this repository; see BUILDING.md and third_party/README.md):
 

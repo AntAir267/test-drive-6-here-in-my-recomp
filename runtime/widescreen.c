@@ -149,7 +149,7 @@ static int resolution_text_hook(CPU *c)
 {
     int w = 0, h = 0;
     uint32_t list = R32(0x577224u), sel = R32(0x65de9cu + c->ecx * 4u);
-    if (!vk_resolution_native() || !list || !sel || c->ecx > 16)
+    if (strcasecmp(option_str("resolution", "original"), "native") || !list || !sel || c->ecx > 16)
         return 0;
     vk_native_size(&w, &h);
     if (w <= 0 || h <= 0)
@@ -164,7 +164,7 @@ static int resolution_text_hook(CPU *c)
     return 1;
 }
 
-/* the race frame; after it, the cars' true heights back for the next ticks (camera.c) */
+/* the race frame; after it, the cars' true vertical velocities back for the next ticks (camera.c) */
 void camera_race_end(void);
 static int race_frame_hook(CPU *c)
 {
@@ -178,6 +178,33 @@ static int race_frame_hook(CPU *c)
 }
 WRAP(race_hud_hook, ws_hud_depth, F_00453cb0, )
 WRAP(front_frame_hook, ws_menu_depth, F_0041d100, refresh())
+
+/* The front end's frame in widescreen (inside 0x41d100, ws_menu_depth; called by the toolkit's
+   renderer for each 3D draw of the menus, in the viewport's 640 x 480 pixels): the top banner and
+   its title, the bottom bar with the rev counter, reach the screen's sides. Pieces left of 160
+   move with the left edge, right of 480 with the right one, the part between stretched to join
+   them: wide pieces (the bar's tiles) by vertex; small ones keep their shape, moved with their side
+   or left in the middle (the title's letters). The bar's own tiles reach its bottom (y 478); what is
+   drawn over its end tiles - the left one, from y 350, holds the rev counter, whose needle need not
+   reach the bottom - goes with them, so the needle stays on its dial at every angle. Everything
+   else (menus, panels, previews) keeps its 4:3 place. e: how far the screen reaches past the 4:3
+   picture on each side. */
+int port_ws_menu_place(const float *xs, int nv, float x0, float x1, float y0, float y1, float e,
+                       float *shift, float *nx)
+{
+    const float L = 160.0f, R = 480.0f, cx = (x0 + x1) * 0.5f;
+    if (!(y1 <= 80.5f || y1 >= 476.0f || (cx < L && y0 >= 350.0f) || (cx > R && y0 >= 430.0f)))
+        return 0;
+    if (x1 - x0 >= 150.0f) {
+        for (int i = 0; i < nv; i++) {
+            float x = xs[i];
+            nx[i] = x < L ? x - e : x > R ? x + e : L - e + (x - L) * (R - L + 2.0f * e) / (R - L);
+        }
+        return 2;
+    }
+    *shift = cx < L ? -e : cx > R ? e : 0.0f;
+    return 1;
+}
 
 void widescreen_init(void)
 {
