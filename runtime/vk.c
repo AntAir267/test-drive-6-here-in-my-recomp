@@ -861,6 +861,8 @@ void vk_render_info(char *out, int n)
 }
 
 /* the picture area in pixels (window or off-screen image), for the menu's NATIVE text */
+int vk_resolution_native(void) { return res_native; }
+
 void vk_native_size(int *w, int *h)
 {
     *w = *h = 0;
@@ -3750,8 +3752,12 @@ static void draw_impl(const D3DState *st, int prim, const SwVertex *v, int nv, c
             x0 = x < x0 ? x : x0; x1 = x > x1 ? x : x1;
             y0 = y < y0 ? y : y0; y1 = y > y1 ? y : y1;
         }
-        if (ok && x0 <= x1 && (y1 <= 80.5f || y1 >= 476.0f)) {
-            const float L = 160.0f, R = 480.0f, e = c->ox / c->sy;
+        /* (the bar's own tiles reach its bottom, y 478; what is drawn over its end tiles - the left
+           one, from y 350, holds the rev counter, whose needle need not reach the bottom - goes with
+           them: the needle stays on its dial at every angle) */
+        const float L = 160.0f, R = 480.0f, cx = (x0 + x1) * 0.5f;
+        if (ok && x0 <= x1 && (y1 <= 80.5f || y1 >= 476.0f || (cx < L && y0 >= 350.0f) || (cx > R && y0 >= 430.0f))) {
+            const float e = c->ox / c->sy;
 #define FRONT_X(x) ((x) < L ? (x) - e : (x) > R ? (x) + e : L - e + ((x) - L) * (R - L + 2.0f * e) / (R - L))
             if (x1 - x0 >= 150.0f) {
                 for (int i = 0; i < nv; i++) {
@@ -3760,7 +3766,6 @@ static void draw_impl(const D3DState *st, int prim, const SwVertex *v, int nv, c
                 }
                 by_vertex = 1;
             } else {
-                float cx = (x0 + x1) * 0.5f;
                 shift = cx < L ? -c->ox : cx > R ? c->ox : 0.0f;
                 mid += shift;
             }

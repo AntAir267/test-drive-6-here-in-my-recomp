@@ -404,6 +404,8 @@ void runtime_setup(void)
     extern void widescreen_init(void);
     widescreen_init();
     padgame_init();
+    extern void camera_init(void);
+    camera_init();
 }
 
 /* ------------------------------------------------------------------ main */

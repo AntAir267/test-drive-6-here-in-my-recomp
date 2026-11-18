@@ -51,10 +51,20 @@ HOOKS = {
     0x4032a0: 'perspective',
     0x445850: 'race_frame',
     0x453cb0: 'race_hud',
+    # the view cone the visibility tests use (0x432b90, 0x432d00): built from the screen's size
+    # (ECX width, EDX height) and again when a camera changes its focal length
+    0x433b80: 'view_cone',
+    0x433c60: 'view_cone_again',
     # controllers (padgame.c): a race's controls applied (ECX = the joystick + 1, 0 the keyboard)
     0x409a50: 'controls_apply',
     0x408d00: 'race_keys',      # the keyboard's controls read (a race tick's with the keyboard chosen)
     0x41d100: 'front_frame',    # the front end's frame (widescreen: its banner and bottom bar)
+    # VIDEO OPTIONS' RESOLUTION line written and drawn (ECX the item, EDX and one stack argument
+    # passed on; callee pops 4): resolution = native shows the picture's real size
+    0x422fa0: 'resolution_text',
+    # smooth motion (camera.c): a race frame's drawing starting, after its physics ticks (0x445850
+    # calls it once a frame; it picks the track sections to draw)
+    0x457580: 'race_draw',
 }
 CONSTS = {}
 INLINE = {}

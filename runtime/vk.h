@@ -162,4 +162,5 @@ void vk_scene_class(int cls);
 void vk_scene_end(void);
 void vk_options(void);                  /* re-read the Enhanced options (resolution, antialiasing, vsync, textures) */
 void vk_native_size(int *w, int *h);    /* the picture area in pixels */
+int vk_resolution_native(void);         /* options.txt resolution = native */
 void vk_render_info(char *out, int n);  /* what Vulkan draws at, for the menu */
