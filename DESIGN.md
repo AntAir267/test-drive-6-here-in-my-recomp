@@ -232,6 +232,183 @@ Screenshots: the renderer's own frame dumps (a spectacle capture takes in every 
   cache locking (NtLockFile) fails under Wine, so the player's compile step is unchecked until
   run on real Windows.
 
+## Moving onto AntiStatic (branch antistatic, started 2026-11-12; Ant: every game fully onto it)
+
+Branch `antistatic`: the toolkit as a submodule (third_party/antistatic, tag v0.2.0); TD6's
+copies of the translator and the runtime removed; runtime/ keeps port.h, port_td6.c (the port
+hooks: ddraw_init as port_graphics_init; Bink, WMA, widescreen, padgame in game_init; padgame
+per frame as port_pad_frame; WMA's --test delivery in game_frame), bink.c, wma.c, padgame.c,
+widescreen.c, win/. Makefile builds from the toolkit's folders. master stays on TD6's own
+runtime until the checks below pass.
+- Baselines of master [verified: recorded 2026-11-12]: tools/dev/baselines.sh work/baseline-pre
+  (menus 800, race 1800, bet 640, wide 1700 frames of --hash; GPU frame dumps);
+  tools/dev/compare_baselines.sh compares two recordings.
+- Translator [verified: work/gen-at, per-function comparison]: 1393 functions both; with the
+  toolkit's renamed runtime calls (W32T stores, API_CALL, fpu_sw_cc, cpu_cpuid/cpu_rdtsc,
+  eflags_x, capture hooks) the same code but an atomic xchg and two entries (0x401008, padding
+  TD6's translator made a function; 0x467ecc, an unreferenced function the toolkit's wider
+  pointer scan finds).
+- Runtime [verified: --test runs]: builds and runs the menus (800) and the race (1800) to the
+  end. Memory is not yet comparable with the baselines; with TD6's old answers patched into a
+  scratch copy of the toolkit (work/tk-exp, "EXP td6") memory equals master's through 602 of the
+  first frame's 1305 calls. Explained differences so far: the toolkit's mem_hash leaves stacks
+  out; DirectSound 8 and DirectInput 8 COM tables (more methods) shift the heap; GDI text
+  extents by the font's height (TD6: 10 x n by 24) and real DC handles; IsProcessorFeaturePresent
+  provided (the C runtime calls it); CPUID Pentium III model 8 with leaf 2 (TD6: model 7); RDTSC
+  10 MHz, QueryPerformanceCounter 10 MHz (TD6: 1 GHz, 1 MHz); test date 2006-08-04 (TD6:
+  2000-01-01 12:00); computer name PLAYER-PC (TD6: INSANE); GetSystemInfo with the host's
+  processor count (TD6: one) and revision 0x0806; GlobalMemoryStatus 1 GB (TD6: 512 MB);
+  GetDeviceCaps the program's screen size (TD6: 640 x 480). Not yet looked at: what still
+  differs after call 602 (handles, start-up values at 0x50fc78 / 0x50fe50, the keyboard state).
+- Gaps sent to the AntiStatic chat: TD6's three renderer rules (the front end's frame across the
+  screen with the needle, the menus' full-view background quad with depth on, the race HUD's
+  middle 30 % centred) need a placement hook in runtime/d3d7/vk.c; the machine a game sees
+  (CPUID, TSC and counter rates, processors, memory, computer name, test date) as port settings
+  (cpu_count reads the host's, also in --test); dinput.c's event_signal has no definition (sync.c
+  has event_set; worked round in port_td6.c); dinput_device_slot not in input.h.
+  AntiStatic's answer (2026-11-12): both bugs fixed in its main (drop port_td6.c's event_signal and
+  padgame.c's own declaration once pinned at v0.2.1); the placement hook and the machine settings
+  recorded in its ANTISTATIC.md; the arena end waits for the Windows layer. Tagged v0.2.1.
+- v0.2.1 (2026-11-13): pinned. TD6's machine in port.h (PORT_CPU_COUNT, PORT_CPU_REVISION,
+  PORT_TSC_HZ, PORT_QPC_HZ, PORT_MEMORY_MB, PORT_COMPUTER_NAME, PORT_TEST_DATE), and in port_td6.c its
+  own cpu_cpuid (TD6's leaf-1 edx has the APIC bit, which PORT_CPUID_SIGNATURE cannot give) and
+  GlobalMemoryStatus; the renderer's PORT_WS_BG_DEPTH, PORT_WS_HUD_MIDDLE and port_ws_menu_place
+  (widescreen.c: TD6's front-end frame and needle). Reported and worked round in port_td6.c:
+  API_WEAK functions lose to stubs.c's weak "not implemented" whenever the game imports them
+  [verified: FATAL GetSystemInfo is not implemented, called from 0x40faa3]; TD6 defines
+  GetSystemInfo and mciSendCommandA strongly.
+  Checks [verified 2026-11-13]: lockstep against the reference build on the toolkit runtime
+  IDENTICAL on all 1800 frames of the crash race (the translation, with v0.2.1's x87 rounding,
+  is right). Against master's baselines: every scene runs to the end; 18 of 22 widescreen frame
+  dumps pixel-identical, 4 differ only in the menu cursor's angle; memory differs from frame 1
+  (the reasons above, now also handle and atom values: GetDC 0x1d0c0 and RegisterClassEx 0xc001
+  in TD6's runtime; the CreateFile already-exists fix), and the test clock runs a few ms ahead
+  (0.140 s against 0.137 s at the first movie), so the race diverges by frame 1650 (43 bytes of
+  the car records) while each build equals the original code on its own runtime.
+  BLOCKING: runtime/d3d7/swrast.c defines swr_init, which replaces FFmpeg libswresample's in
+  an -rdynamic executable: TD6's Bink and WMA players get the rasteriser's, so movies are silent
+  ("sound 0 frames") and the music fails [verified: nm, the log]. TD6's own copy renamed them
+  swrast_*. Sent to the AntiStatic chat: fixed in v0.2.2.
+- v0.2.2 (2026-11-13): pinned; both bugs fixed there (imports are weak references with their own
+  stand-ins, so a runtime's weak default binds; swrast.c's functions are swrast_*). TD6's own
+  cpu_cpuid, GetSystemInfo and mciSendCommandA gone: CPUID from PORT_CPUID_SIGNATURE 0x673,
+  PORT_CPUID_MAX_LEAF 1 and PORT_CPUID_FEATURES 0x0383fbff (0x40fa30 asks leaves 0, 1 and 3; 3
+  answers zeros in both); GlobalMemoryStatus stays TD6's (its free-memory fields).
+  Checks [verified 2026-11-13]: lockstep IDENTICAL on the crash race's 1800 frames; every
+  baselines.sh scene runs to the end; the bet by pad 500 -> 800 as on master; 18 of 22 frame
+  dumps pixel-identical, 4 only the menu cursor's angle; movie sound back (Title.bik 2868480
+  frames) and the music decodes (TD6_TEST_MUSIC=1: GW2.wma). TD6.log now says "@ 3001 MHz" in
+  --test runs (master: 1001): the speed test (0x40fb98-0x40fc00: RDTSC, QueryPerformanceCounter,
+  a busy loop with no clock, QueryPerformanceCounter, RDTSC) measures how many virtual-clock
+  readings (1 us each) the runtime makes around the loop [guess: the toolkit reads the clock
+  three times where TD6's runtime read it once; not counted], the same effect that puts the
+  toolkit's --test clock a few ms ahead. Real runs read real clocks (about 1000 MHz).
+- v0.2.3 (2026-11-13): pinned (HT2's LoadBitmapA, mmioOpenA and NULL-source string conversion
+  fixes; TD6 imports neither of the first two). Menus and race the same as on v0.2.2 on every
+  frame, memory and draw hashes [verified: compare_baselines.sh, which now compares whatever
+  columns two recordings share: the toolkit's hash files add a draw hash].
+- v0.2.8 (2026-11-13): pinned (fog on by default; PORT_DEFAULT_RESOLUTION, TD6's default
+  "original" unchanged). Correction: the "18 of 22 frame dumps pixel-identical" above were the
+  menus and options only; no race frame had been looked at on the toolkit. Race levels draw
+  BLACK on every toolkit version so far [verified: the same environment CM9 (the race start
+  shifted 3 frames picks it), the same level draws, textures and vertex colours as master; black
+  in the Vulkan and the software renderers; still black with master's d3d.c]: ddraw.c's
+  SetSurfaceDesc (LEGO Island 2's) refuses anything but a lone LPSURFACE, and TD6's texture
+  manager passes WIDTH / HEIGHT / PITCH / PIXELFORMAT too (254 refusals in a race load: its
+  level textures stay empty). TD6 master's SetSurfaceDesc in a scratch copy (work/tk-ssd) brings
+  the level back, 0 refusals. Sent to the AntiStatic chat. Fog: TD6 sets no FOGENABLE in these
+  races (VIDEO OPTIONS' USE FOGGING is OFF and a scripted RIGHT did not turn it on), so v0.2.8's
+  fog default changes no frame here (v0.2.3 and v0.2.8 pixel-identical in the same environment).
+  The quick race's conditions are a random pick (CM1-CM10 env scripts, TD6.log names the one):
+  builds whose test clocks differ pick differently, so race frames are compared only where the
+  logs name the same script. baselines.sh now records race frames too (raceshots).
+- v0.2.9 (2026-11-13): pinned; TD6's SetSurfaceDesc in the toolkit. The race level draws again
+  [verified: the CM9 quick race at 1280x800 widescreen, 0 refused SetSurfaceDesc, frames 1150 and
+  1250 as master's but for the random car colour; 1200 and 1250 pixel-identical to the v0.2.8
+  scratch build with the fix, so v0.2.9's other shared changes move no TD6 race frame here].
+  Not looked at: the race-start burnout smoke (the autopilot does not spin its wheels; v0.2.9
+  changed smoke sorting ties).
+- 2026-11-14, Ant on the branch build (the app-menu entry runs build/td6 of this checkout, so he
+  has played the antistatic branch since 2026-11-13): "controllers are broken outside of menu
+  even though they still vibrate". The toolkit's pad.c sends Windows' Xbox layout (Y the left
+  stick's up/down, Z the triggers); TD6 reads X and Y only, Y being its pedals, so races had no
+  accelerator or brake. padgame.c's port_pad_send sends TD6's runtime's layout (Y = LT - RT, Z
+  the left stick's up/down) [verified: quick race, RT held from the start: 31 mph at frame 1300
+  on master and with the fix, 0 on v0.2.9 as it was; the same with a second scripted controller's
+  RT (2.RT), the toolkit merging every controller into the one joystick]. Also: the toolkit's
+  frame limiter has no menu cap, and TD6's front end moves a step a frame (no clock), so its menus
+  ran at the screen's rate; port_frame_limit_ms (port_td6.c) paces frames outside races at
+  menu_fps (60) as TD6's runtime did [verified: off-screen real time, 80 menu frames 13 ms apart
+  uncapped, 1.333 s capped]. "Looks like it has a low shutter speed": not found offline. --test
+  frame dumps of the CM9 race: no frame repeated or blended (each differs from the last by 13-21
+  on average), the scenery's sharpness the same as master's (pixel-identical where the races
+  agree); real time off-screen at 120 fps: frames 8.33 ms +- 0.01, the extrapolation (0x62e164)
+  stepping 0.24 / 0.27, the clock-spin guard making no difference; game-thread CPU 0.69 ms a race
+  frame (master 0.86); present mode and swapchain set up as master's. Asked Ant what he sees.
+- The judder (Ant, 2026-11-14: "I isolated the judder to vertical camera movement (like jumps or
+  hills)"): the game's own camera, the same on master [verified: the camera position (0x58546c,
+  0x585470, 0x585474) logged each frame of a real-time quick race at 120 fps on master (a
+  worktree with the log) and on the branch: the frame on which a new physics tick starts (the
+  extrapolation 0x62e164 wrapping) moves the camera about twice as far across (170 against 84)
+  and its height four times as much (1.38 against 0.30), the same in both]. TD6 draws the camera
+  extrapolated between its 30 Hz ticks, but its height (and part of its travel) changes only per
+  tick: at 120 Hz and more that steps every fourth frame, which 1999's 30-60 fps hid. A fix is an
+  extra of the port's own (smoothing the camera between ticks), not a repair.
+  SMOOTH CAMERA, first try (camera smoothing alone, hooks on 0x431d70 / 0x431fc0): RULED OUT.
+  Ant: "now the opposite problem is happening, the game judders completely outside of that
+  vertical movement". The car (the chase camera's target) steps exactly as the camera did (the
+  frame a tick starts on moves 2.02x as far at 120 fps, 2.42x at 165), so the game's camera kept
+  the car still on screen; smoothing the camera alone left the car stepping against it (the car's
+  on-screen motion 18x as abrupt). The cause is global: a tick moves things 1.25 times the
+  velocity they are drawn extrapolated by [verified: the target logged each frame of real-time
+  races, at steady speed 1.2514 at 120 fps and 1.2515 at 165, over 853 ticks].
+  SMOOTH MOTION (runtime/camera.c; options.txt smooth_camera, on by default, off in --test runs
+  unless TD6_ENHANCED): the race frame's tick fraction (0x4458ba: the clock's low 16 bits times
+  1/65536 at 0x46d4f8, stored at 0x62e164 for drawing) made 1.25 times as large through
+  MEM_OVERRIDES tick_fraction, so everything drawn extrapolated reaches the next tick's position
+  as the tick comes [verified 2026-11-14, real time off-screen: at 120 fps the car's and the
+  camera's frame-to-frame change of step 12461 -> 3012 and 12572 -> 3492, the tick frame 1.02x /
+  1.04x the others (from 2.02x / 2.03x); at 165 fps 1.03x / 1.06x (from 2.42x / 2.45x); the car on
+  screen 634 -> 1012 (the camera's follow movement is not exactly the car's), far from the camera
+  smoothing's 11899. A TD6_ENHANCED race with crashes, on against off at frame 1700: only the
+  cars' drawn positions (car record + 0x134..0x13c) and the fraction differ, every physics and AI
+  field the same; frames look alike; lockstep IDENTICAL]. TD6_CAM_LOG=1 logs the drawn camera.
+  HEIGHTS (reported 2026-11-14 after the fraction fix: "happening again on vertical movement"):
+  a car's height through a tick comes from the road (in steps of 64: a tick's change ran -192,
+  +64, +64, +64, 0 on one hill) and its suspension, not from its vertical velocity, and the
+  camera's height over its car (0x5e38d0 + 4 x view, eased towards its aim each tick by
+  0x438610) changes only at ticks, so heights still stepped. Extrapolating by the last tick's
+  height change instead made it worse (the steps overshoot), so heights are drawn BETWEEN the
+  last two ticks (one tick, 1/30 s, behind; across stays extrapolated as above): when the
+  frame's drawing starts (hook race_draw, 0x457580, called once a race frame after the ticks)
+  each car (6 records of 0x330 from 0x650d60) gets height (+0x1d8) = the height a tick before
+  and vertical velocity (+0x1c0) = the tick's change / 1.25, and each view's camera height the
+  value between its last two ticks' by the fraction; the true values go back when the race
+  frame ends (widescreen.c's race_frame hook), before any tick. A change over 0x10000 in a tick
+  (put back on the road, a new race) keeps the game's own. [verified 2026-11-14, real time
+  off-screen, autopilot quick race, the tick frame's height step against the others': camera
+  2.61x -> 0.97x at 120 fps (1.71x with the fraction fix alone), 3.57x -> 0.97x at 165; the car
+  2.26x -> 0.97x, 3.16x -> 0.97x; frame-to-frame change of step 0.80 -> 0.14 (camera, 120). A
+  TD6_ENHANCED scripted race, on against the fraction fix alone at frame 1790: the six cars'
+  positions across and every other physics field identical; the heights and vertical velocities
+  differ by exactly the swap (the dump is taken inside the race frame); the plain --test race
+  scene identical to the previous commit's.] TD6_CAM_NO_HEIGHT=1 leaves heights as the game's.
+- v0.2.38 (2026-11-18): the toolkit public (github.com/AntAir267/AntiStatic-Recomp-Toolkit; the
+  submodule now points there, never at -internal); public history is one commit per release.
+  Checks [verified]: the menus, race, bet and wide scenes' memory identical frame by frame to
+  v0.2.30's (800 / 1800 / 640 / 1700 frames); the options screenshots alike but for the saved
+  player's credits; a fresh clone of the public snapshot builds from the public submodule.
+- v0.2.30 (2026-11-14): pinned (a real run exits 0 when the game quits normally, its own code
+  kept in the log; regenerated for v0.2.20's funcs.h). Checks [verified]: lockstep IDENTICAL on
+  1800 frames; the CM9 race frames 1200-1300 pixel-identical to v0.2.9's; a second controller's
+  RT drives the race (31 mph at frame 1300); a real-time run quit by MAIN MENU > QUIT > YES:
+  "program exited with code 13" in the log, the process 0.
+- Still to do: DirectSound (TD6's own 3D sound against the toolkit's, by recorded mixes), the
+  renderer rules once the hook is in, frame dumps against the baselines, the Windows build
+  (runtime/win; the toolkit's arena ends at 0x74000000, TD6's Windows reservation at
+  0x70000000), the release scripts (they copy the translator: public releases wait until the
+  toolkit is public).
+
 ## Open reports (parked 2026-10-25, Ant)
 
 - Driving through objects "sometimes". Checked: a scripted quick race into an opponent and a

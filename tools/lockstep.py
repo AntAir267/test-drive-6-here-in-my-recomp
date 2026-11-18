@@ -91,7 +91,7 @@ def main():
     print('previous call returned to %s' % next((x[1] for x in CA if int(x[0]) == call - 1), '?'))
     dn, dr = os.path.join(work, 'nat.mem'), os.path.join(work, 'ref.mem')
     both(args, work, ['--dump-memory-call', str(call), dn], ['--dump-memory-call', str(call), dr])
-    subprocess.run([sys.executable, os.path.join(ROOT, 'tools', 'memdiff.py'), dn, dr])
+    subprocess.run([sys.executable, os.path.join(ROOT, 'third_party', 'antistatic', 'translator', 'memdiff.py'), dn, dr])
     return 1
 
 

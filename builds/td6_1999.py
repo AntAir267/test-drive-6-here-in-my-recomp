@@ -67,6 +67,10 @@ HOOKS = {
     0x457580: 'race_draw',
 }
 CONSTS = {}
+# Fixed memory operands the runtime may point elsewhere (rm_<name>): the race frame's tick fraction
+# (0x445850: the low 16 bits of the clock in ticks times 1/65536 at 0x46d4f8, stored at 0x62e164
+# for drawing everything extrapolated): camera.c's smooth_camera points it at 1.25/65536
+MEM_OVERRIDES = {'tick_fraction': (0x4458ba, 0x46d4f8)}
 INLINE = {}
 # Game data the runtime reads: emitted as GAME_<NAME> in gen/image.h.
 DATA = {

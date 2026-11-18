@@ -1,0 +1,3 @@
+[submodule "third_party/antistatic"]
+	path = third_party/antistatic
+	url = https://github.com/AntAir267/AntiStatic-Recomp-Toolkit.git

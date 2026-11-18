@@ -8,7 +8,7 @@
   "project": "Test Drive 6 - Here In My Recomp",
   "status": "playable",
   "targets": ["Linux", "Windows"],
-  "toolchain": "1nsane-recompiled",
+  "toolchain": "AntiStatic",
   "approach": "Static recompilation of TD6.exe to C, with a Windows and DirectX 7 stand-in on SDL3 and Vulkan; checked frame by frame against the original code.",
   "started": "2026-10-24",
   "maintainers": [{ "name": "AntAir267", "link": "https://github.com/AntAir267" }],

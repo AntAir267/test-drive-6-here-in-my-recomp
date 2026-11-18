@@ -104,7 +104,7 @@ static int hook_cpuid(uc_engine *u, void *ud)
     memset(&t, 0, sizeof t);
     uc_reg_read(u, UC_X86_REG_EAX, &t.eax);
     uc_reg_read(u, UC_X86_REG_ECX, &t.ecx);
-    x86_cpuid(&t);
+    cpu_cpuid(&t);
     uc_reg_write(u, UC_X86_REG_EAX, &t.eax);
     uc_reg_write(u, UC_X86_REG_EBX, &t.ebx);
     uc_reg_write(u, UC_X86_REG_ECX, &t.ecx);
@@ -115,7 +115,7 @@ static int hook_cpuid(uc_engine *u, void *ud)
 static int hook_rdtsc(uc_engine *u, void *ud)
 {
     (void)ud;
-    uint64_t v = x86_rdtsc(current_cpu());
+    uint64_t v = cpu_rdtsc(current_cpu());
     uint32_t lo = (uint32_t)v, hi = (uint32_t)(v >> 32);
     uc_reg_write(u, UC_X86_REG_EAX, &lo);
     uc_reg_write(u, UC_X86_REG_EDX, &hi);
