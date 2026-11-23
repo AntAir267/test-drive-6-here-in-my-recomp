@@ -393,6 +393,14 @@ runtime until the checks below pass.
   positions across and every other physics field identical; the heights and vertical velocities
   differ by exactly the swap (the dump is taken inside the race frame); the plain --test race
   scene identical to the previous commit's.] TD6_CAM_NO_HEIGHT=1 leaves heights as the game's.
+- v0.2.46 (2026-11-23): PORT_X87_PORTABLE and PORT_SSE_PORTABLE on (the toolkit's defaults: x87
+  sin/cos/tan/atan/log/2^x from basic arithmetic, exact rcp/rsqrt, so test runs are the same on
+  Intel and AMD); generated objects depend on port.h and the toolkit's cpu headers; v0.2.42's
+  bounded switch for 0x434a4c's table the only change in the generated C. TD6 has 9 fsin/fcos
+  and 6 fyl2x (none of the SSE ones), their results stored as single floats. Checks [verified]:
+  with both off, the four scenes identical to v0.2.38's; with both on, identical too (so the
+  baselines in work/baseline-46 hold for v0.2.38 builds as well on this PC); lockstep IDENTICAL
+  on 1800 frames; a real-time 120 fps race moves evenly (tick ratios 0.99).
 - v0.2.38 (2026-11-18): the toolkit public (github.com/AntAir267/AntiStatic-Recomp-Toolkit; the
   submodule now points there, never at -internal); public history is one commit per release.
   Checks [verified]: the menus, race, bet and wide scenes' memory identical frame by frame to

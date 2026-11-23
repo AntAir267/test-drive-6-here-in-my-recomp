@@ -41,7 +41,7 @@ gen/table.c gen/stubs.c gen/image.h: gen/funcs.h ;
 gen/files.mk: gen/funcs.h
 	@echo 'GEN_CODE = $(sort $(wildcard gen/code_*.c))' > $@
 
-build/obj/gen_%.o: gen/%.c gen/funcs.h $(TK)/runtime/cpu/cpu.h | build/obj
+build/obj/gen_%.o: gen/%.c gen/funcs.h runtime/port.h $(wildcard $(TK)/runtime/cpu/*.h) | build/obj
 	$(CC) $(CFLAGS_GEN) -c $< -o $@
 
 build/obj/tk_%.o: %.c $(RT_H) gen/funcs.h | build/obj
