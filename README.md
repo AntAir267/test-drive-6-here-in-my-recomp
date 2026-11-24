@@ -53,8 +53,8 @@ All optional, in `~/.local/share/td6-native/options.txt` (written with comments 
 
 ## Tested on
 
-- **Linux:** a handheld laptop with AMD (RDNA 3.5)
-  graphics; Ubuntu 26.04 LTS, Linux 7.0, KDE Plasma 6.6 (Wayland), Mesa (RADV).
+- **Linux:** a handheld laptop with AMD graphics (RDNA 3.5); Ubuntu 26.04 LTS, Linux 7.0, KDE
+  Plasma 6.6 (Wayland), Mesa (RADV); and a Steam Deck.
 - **Windows:** not yet on a Windows PC. The Windows build was made and checked on the Linux
   machine above under Wine (Proton 10): the game runs and computes exactly what the Linux build
   does; the first-run build step could not run there (Wine lacks a file call the compiler uses).
