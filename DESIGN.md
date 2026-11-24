@@ -244,6 +244,12 @@ Screenshots: the renderer's own frame dumps (a spectacle capture takes in every 
   on all 1800 race frames; the player's compile step on Windows still unchecked. A 120 fps race
   of the player's build moves evenly (tick ratios 0.99-1.04).
 
+- v0.2.51 (2026-11-24): the DirectSoundEnumerate order fixed in the toolkit; regenerated (v0.2.47's
+  icall -> ijump and SEH scope tables). Checks [verified]: the four scenes identical to v0.2.46's;
+  a Zig build's heap now matches gcc's, frame 1 differing only in 69 bytes of decoded movie sound
+  (±1: the system's FFmpeg against the bundled one, as at 0.1), so gcc and Zig hashes still split
+  at frame 1 by FFmpeg alone.
+
 ## Moving onto AntiStatic (branch antistatic, started 2026-11-12; Ant: every game fully onto it)
 
 Branch `antistatic`: the toolkit as a submodule (third_party/antistatic, tag v0.2.0); TD6's
