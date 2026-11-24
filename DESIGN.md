@@ -244,6 +244,11 @@ Screenshots: the renderer's own frame dumps (a spectacle capture takes in every 
   on all 1800 race frames; the player's compile step on Windows still unchecked. A 120 fps race
   of the player's build moves evenly (tick ratios 0.99-1.04).
 
+- v0.2.54 (2026-11-24, Ant via Recomp Advisor): caught exceptions on Clang/Windows builds fixed in
+  the toolkit; TD6 has no resume points (no catches), so its translation is byte for byte the same
+  and 0.2.0-alpha's Windows zip was not exposed: no new release. Checks [verified]: the four
+  scenes identical to v0.2.51's; both downloads build; the Windows game under Proton 10's Wine
+  equals the Linux Zig build on all 1800 race frames.
 - v0.2.51 (2026-11-24): the DirectSoundEnumerate order fixed in the toolkit; regenerated (v0.2.47's
   icall -> ijump and SEH scope tables). Checks [verified]: the four scenes identical to v0.2.46's;
   a Zig build's heap now matches gcc's, frame 1 differing only in 69 bytes of decoded movie sound
@@ -251,6 +256,9 @@ Screenshots: the renderer's own frame dumps (a spectacle capture takes in every 
   at frame 1 by FFmpeg alone.
 
 ## Moving onto AntiStatic (branch antistatic, started 2026-11-12; Ant: every game fully onto it)
+
+Merged into master 2026-11-24 (at v0.2.51; 0.2.0-alpha was released from the branch). The
+branch is kept for history; work goes on in master.
 
 Branch `antistatic`: the toolkit as a submodule (third_party/antistatic, tag v0.2.0); TD6's
 copies of the translator and the runtime removed; runtime/ keeps port.h, port_td6.c (the port
