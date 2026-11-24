@@ -407,7 +407,7 @@ static int build_game(void)
         largv[k++] = res;
     static const char *const winlibs[] = {"-lz", "-lvulkan-1", "-luser32", "-lgdi32", "-lwinmm", "-limm32", "-lole32",
         "-loleaut32", "-lversion", "-luuid", "-ladvapi32", "-lsetupapi", "-lshell32", "-ldinput8", "-lbcrypt",
-        "-lpthread", "-static", "-Wl,--stack,8388608", "-mwindows", NULL};
+        "-lpthread", "-static", "-Wl,--stack,8388608", "-Wl,--subsystem,windows", "-Wl,-e,mainCRTStartup", NULL};
     for (int i = 0; winlibs[i]; i++)
         largv[k++] = winlibs[i];
 #else

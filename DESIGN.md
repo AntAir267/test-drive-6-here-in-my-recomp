@@ -232,6 +232,18 @@ Screenshots: the renderer's own frame dumps (a spectacle capture takes in every 
   cache locking (NtLockFile) fails under Wine, so the player's compile step is unchecked until
   run on real Windows.
 
+- 0.2.0-alpha (2026-11-24, on AntiStatic v0.2.46): the release scripts take the runtime, its
+  headers (runtime/cpu/*.h, runtime.h, port.h) and the translator from third_party/antistatic,
+  the Windows pieces from its runtime/win. Checks [verified]: the AppImage's first-run setup from
+  the game folder builds the game in 26 s; that game equals the release tree's own Zig build
+  frame by frame and, after 1790 frames of the scripted race, the gcc build's whole game image
+  (0x400000-0x676000, the cars included). Its heap differs from the gcc build's from frame 1: the
+  toolkit's DirectSoundEnumerate allocates two strings in one call's arguments, which gcc and
+  clang evaluate in opposite orders (reported to the toolkit); so hashes compare gcc with gcc and
+  Zig with Zig. The Windows game under Proton 10's Wine (wine_lowfree) equals the Linux Zig build
+  on all 1800 race frames; the player's compile step on Windows still unchecked. A 120 fps race
+  of the player's build moves evenly (tick ratios 0.99-1.04).
+
 ## Moving onto AntiStatic (branch antistatic, started 2026-11-12; Ant: every game fully onto it)
 
 Branch `antistatic`: the toolkit as a submodule (third_party/antistatic, tag v0.2.0); TD6's

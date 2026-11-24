@@ -3,7 +3,8 @@
 #
 # Run it in a checkout of its own (a git worktree): its build/ and gen/ become the release build.
 # It needs the player-to-be's TD6.exe once, as every build does (GAME=..., default the usual game
-# folder): the runtime is compiled against the declarations the translator writes (gen/funcs.h),
+# folder): the runtime (AntiStatic, third_party/antistatic, plus runtime/) is compiled against the
+# declarations the translator writes (gen/funcs.h),
 # and the players' translation must give the same (FUNCS_SHA256, checked by the launcher).
 #
 # Everything is built with Zig 0.17.0 for glibc 2.31 (third_party/zig-*, SDL3 from
@@ -38,7 +39,9 @@ mkdir -p "$TOOLS" "$OUT"
 printf '#!/bin/sh\nexec %s cc -target %s "$@"\n' "$Z" "$T" > "$TOOLS/zcc"
 chmod +x "$TOOLS/zcc"
 SYSINC="-idirafter /usr/include -idirafter /usr/include/x86_64-linux-gnu"
-COMMON="-std=gnu11 -g -fno-strict-aliasing -fno-omit-frame-pointer -Iruntime -Igen -I$SDL/include -I$FF/include $SYSINC"
+TK=third_party/antistatic                  # (the AntiStatic toolkit: translator and most of the runtime)
+RT_INC="-Iruntime -I$TK/runtime/cpu -I$TK/runtime/win32 -I$TK/runtime/d3d7"
+COMMON="-std=gnu11 -g -fno-strict-aliasing -fno-omit-frame-pointer $RT_INC -Igen -I$SDL/include -I$FF/include $SYSINC"
 FFLIBS="$FF/lib/libavformat.a $FF/lib/libavcodec.a $FF/lib/libswscale.a $FF/lib/libswresample.a $FF/lib/libavutil.a"
 
 echo "== the game built with Zig (the runtime is what the download carries; the rest checks it)"
@@ -52,9 +55,9 @@ rm -rf "$A"
 mkdir -p "$B/lib/stubs" "$B/include" "$B/builds" "$B/tools" "$A/usr/bin"
 
 echo "== the runtime and its libraries"
-"$Z" ar rcs "$B/lib/libruntime.a" $(ls build/obj/rt_*.o | grep -v rt_main_nomain)
+"$Z" ar rcs "$B/lib/libruntime.a" $(ls build/obj/tk_*.o build/obj/rt_*.o | grep -v _main_nomain)
 cp "$SDL/lib/libSDL3.a" $FFLIBS "$B/lib/"
-cp runtime/cpu.h runtime/runtime.h "$B/include/"
+cp $TK/runtime/cpu/*.h $TK/runtime/win32/runtime.h runtime/port.h "$B/include/"
 cp builds/td6_1999.py "$B/builds/"
 sha256sum gen/funcs.h | cut -c1-64 > "$B/FUNCS_SHA256"
 REL=$(cat tools/release/VERSION)
@@ -76,7 +79,7 @@ tar -C "$PYS/lib" --exclude=test --exclude=idlelib --exclude=tkinter --exclude=t
     --exclude='_dbm.*' -cf - python3.14 | tar -C "$B/python/lib" -xf -
 cp -r "$CAP/capstone" "$B/python/lib/python3.14/site-packages/"
 find "$B/python/lib/python3.14/site-packages/capstone" -name __pycache__ -prune -exec rm -r {} +
-cp tools/recomp.py tools/codegen.py tools/discover.py tools/pe.py tools/x86.py tools/fpustack.py tools/install.py "$B/tools/"
+cp $TK/translator/*.py tools/install.py "$B/tools/"
 
 echo "== the launcher"
 "$TOOLS/zcc" -O2 -fPIE -pie -I"$SDL/include" $SYSINC -o "$A/usr/bin/td6-recomp" launcher/launcher.c \
@@ -90,6 +93,7 @@ echo "== the licences (every part the download carries; CREDITS.md names them)"
 L=$B/licenses
 mkdir -p "$L"
 cp CREDITS.md LICENSE "$L/"
+cp $TK/LICENSE "$L/AntiStatic-LICENSE.txt"
 cp "$(readlink -f "$TP/sdl3-rel")"/../SDL3-*/LICENSE.txt "$L/SDL3-LICENSE.txt"
 cp "$TP"/ffmpeg-8.0.1/COPYING.LGPLv2.1 "$L/FFmpeg-COPYING.LGPLv2.1"
 cp "$TP"/ffmpeg-8.0.1.tar.xz "$L/"                  # (FFmpeg's source, as the LGPL asks: see FFmpeg-BUILD.txt)
